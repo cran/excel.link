@@ -15,9 +15,7 @@ current.graphics(type="emf",\dots)
 \item{\dots}{arguments for internally used savePlot function}
 }
 %- maybe also 'usage' for other objects documented here.
-\details{
-%%  ~~ If necessary, more details than the description above ~~
-}
+
 \value{
 Path to file with saved graphics with class attribute 'current.graphics' and attribute 'temp.file'=TRUE
 
@@ -27,9 +25,7 @@ Path to file with saved graphics with class attribute 'current.graphics' and att
 %%  \item{comp2 }{Description of 'comp2'}
 %% ...
 }
-\references{
-%% ~put references to the literature/web site here ~
-}
+
 \author{
 Gregory Demin <excel.link.feedback@gmail.com>
 }

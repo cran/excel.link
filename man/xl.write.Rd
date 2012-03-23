@@ -50,9 +50,7 @@ Invisibly returns rows and columns number ocuppied by r.obj on Excel sheet.
 %%  \item{comp2 }{Description of 'comp2'}
 %% ...
 }
-\references{
-%% ~put references to the literature/web site here ~
-}
+
 \author{
 Gregory Demin <excel.link.feedback@gmail.com>
 }

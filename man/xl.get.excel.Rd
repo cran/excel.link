@@ -10,13 +10,7 @@ Returns reference to Microsoft Excel application. If there is no instance alread
 \usage{
 xl.get.excel()
 }
-\arguments{
 
-}
-%- maybe also 'usage' for other objects documented here.
-\details{
-%%  ~~ If necessary, more details than the description above ~~
-}
 \value{
 An object of class 'COMIDispatch' (as returned by 'COMCreate' from RDCOMClient package).
 
@@ -26,9 +20,7 @@ An object of class 'COMIDispatch' (as returned by 'COMCreate' from RDCOMClient p
 %%  \item{comp2 }{Description of 'comp2'}
 %% ...
 }
-\references{
-%% ~put references to the literature/web site here ~
-}
+
 \author{
 Gregory Demin <excel.link.feedback@gmail.com>
 }

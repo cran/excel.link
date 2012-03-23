@@ -3,6 +3,8 @@
 ## Gregory Demin, 2011 <excel.link.feedback@gmail.com> ##
 #########################################################
 #########################################################
+##### ver 0.5  - 19.11.2011 - Initial release ###########
+##### ver 0.5.1 - 23.11.2011- Bugfix release ###########
 
 .onAttach <- function(...) {
 	packageStartupMessage("\nTo Daniela Khazova who constantly inspires me...")
@@ -16,6 +18,8 @@ xl.get.excel=function()
 # return reference to Microsoft Excel
 {
 	xls<-COMCreate("Excel.Application")
+	if (xls[['workbooks']][['count']]==0) xls[['workbooks']]$add()
+	# xls<-getCOMInstance("{000208D5-0000-0000-C000-000000000046}")
 	if (!xls[["Visible"]]) xls[["Visible"]]=TRUE
 	return(xls)
 }
@@ -164,6 +168,9 @@ xl.write=function(r.obj,xl.rng,na="",...)
 ## insert values in excel range.
 ## shoul return c(row,column) - next emty point
 {
+	app=xl.rng[["Application"]]
+	on.exit(app[["Screenupdating"]]<-TRUE)
+	app[["Screenupdating"]]=FALSE
 	UseMethod("xl.write")
 }
 
@@ -240,6 +247,53 @@ xl.write.list=function(r.obj,xl.rng,na="",...)
 	invisible(res)
 }
 
+
+xl.write.ctable=function(r.obj,xl.rng,na="",row.names=TRUE,col.names=TRUE,...){
+	xl.colnames<-t(names.to.matrix(colnames(r.obj)))
+	xl.rownames<-names.to.matrix(rownames(r.obj))
+	has.col=ifelse(!is.null(xl.colnames) && col.names,nrow(xl.colnames),0)
+	has.row=ifelse(!is.null(xl.rownames) && row.names,ncol(xl.rownames),0)
+	if ((row.names | col.names)){
+		# clear output area
+		out.rng=xl.rng[['Application']]$range(xl.rng$cells(1,1),xl.rng$cells(nrow(r.obj)+has.col,ncol(r.obj)+has.row))
+		out.rng$clear()
+	}
+	if (has.col) {
+		xl.raw.write(xl.colnames,xl.rng$offset(0,has.row),na)
+	}	
+	if (has.row) {
+		xl.raw.write(xl.rownames,xl.rng$offset(has.col,0),na)
+	}	
+	# for (i in seq_len(ncol(r.obj)))	xl.raw.write(r.obj[,i],xl.rng$offset(has.col,i+has.row-1),na)
+	xl.raw.write.matrix(r.obj,xl.rng$offset(has.col,has.row),na)
+
+	invisible(c(nrow(r.obj)+has.col,ncol(r.obj)+has.row))
+}
+
+names.to.matrix=function(name,splitter="|")
+# Convert rownames/colnames with items delimited by symbol 'splitted'
+# to matrix with each label in it's own cell and remove sequentally repeated
+# labels.
+{
+	if (!is.null(name)){
+	splitted=strsplit(as.character(name),split=splitter,fixed=TRUE)
+	el.len=max(unlist(lapply(splitted,length)))
+	column.nums=1:el.len
+	res=vapply(splitted,"[",column.nums,FUN.VALUE=as.character(column.nums))
+	res[is.na(res)]=""
+	as.matrix(apply(as.matrix(res),1,function(each.row){
+		first=each.row[1]
+		for (each.col in seq_along(each.row)[-1]){
+			if (each.row[each.col]==first) {
+				each.row[each.col]=""
+			} else {
+				first=each.row[each.col]
+			}
+		}
+		each.row
+	})) } else NULL
+}
+
 xl.write.matrix=function(r.obj,xl.rng,na="",row.names=TRUE,col.names=TRUE,...)
 ## insert matrix into excel sheet including column and row names
 {
@@ -278,58 +332,38 @@ xl.write.matrix=function(r.obj,xl.rng,na="",row.names=TRUE,col.names=TRUE,...)
 xl.write.data.frame=function(r.obj,xl.rng,na="",row.names=TRUE,col.names=TRUE,...)
 ## insert data.frame into excel sheet including column and row names
 {
+	
+	# stop("Multi-column (e. g. matrix) data.frame elements currently not supported.")
 	if (!is.null(r.obj)){
 		xl.colnames<-colnames(r.obj)
+		column.numbers=sapply(r.obj,NCOL)
+		if (any(column.numbers>1))  {
+			xl.colnames=rep(xl.colnames,times=column.numbers)
+			suffix=as.list(character(length(column.numbers)))
+			suffix[column.numbers>1]=lapply(column.numbers[column.numbers>1],function(x) paste(".",seq(x),sep=""))
+			xl.colnames=paste(xl.colnames,unlist(suffix),sep="")
+		}	
 		xl.rownames<-rownames(r.obj)
 		has.col=(!is.null(xl.colnames) & col.names)*1
 		has.row=(!is.null(xl.rownames) & row.names)*1
 		if (has.col) xl.raw.write(t(xl.colnames),xl.rng$offset(0,has.row),na)
 		if (has.row) xl.raw.write(xl.rownames,xl.rng$offset(has.col,0),na)
-		types=rle(sapply(r.obj,class))
+		types=rle(sapply(r.obj,function(x) paste(class(x),collapse="&")))
 		lens=types$lengths
 		beg=head(c(1,1+cumsum(lens)),-1)
 		end=cumsum(lens)
-		mapply(function(x,y){
-			xl.raw.write.matrix(as.matrix(r.obj[,x:y,drop=FALSE]),xl.rng$offset(has.col,x+has.row-1),na)
-		},beg,end)
+		if (has.col || has.row) xl.rng=xl.rng$offset(has.col,has.row)
+		for (i in seq_along(beg)){
+			x=beg[i]
+			y=end[i]
+			col.offset=xl.raw.write.matrix(as.matrix(r.obj[,x:y,drop=FALSE]),xl.rng,na)[2]
+			xl.rng=xl.rng$offset(0,col.offset)
+		}
 	}
 	invisible(c(nrow(r.obj)+has.col,ncol(r.obj)+has.row))
 }
 
-	# if (any(nas) & is.numeric(r.obj)){
-		# nas=rle(nas)
-		# lens=nas$lengths
-		# coord=c(1,1+cumsum(lens))
-		# coord=coord[c(nas$values,FALSE)]
-		# lens=lens[nas$values]
-		# mapply(function(x,y){
-			# na.rng=xl.rng[['Application']]$range(xl.rng$cells(1,x),xl.rng$cells(1,x+y-1))
-			# na.rng[['Value']]=asCOMArray(rep(na,y))
-		# },coord,lens)
-	# }
 
-
-
-
-# xl.write.default<-function(r.obj,xl.rng,na=""){
-	# xl.write(capture.output(r.obj),xl.rng,na)
-# }
-
-# xl.write.character<-function(r.obj,xl.rng,na=""){
-	# xl.write.vector(r.obj,xl.rng,na)
-# }
-
-# xl.write.factor<-function(r.obj,xl.rng,na=""){
-	# xl.write.vector(as.character(r.obj),xl.rng,na)
-# }
-
-# xl.write.numeric<-function(r.obj,xl.rng,na=""){
-	# xl.write.vector(r.obj,xl.rng,na)
-# }
-
-# xl.write.logic<-function(r.obj,xl.rng,na=""){
-	# xl.write.vector(r.obj,xl.rng,na)
-# }
 
 xl.write.default=function(r.obj,xl.rng,na="",row.names=TRUE,...){
 	if (is.null(r.obj) || length(r.obj)==0) r.obj=""
@@ -412,30 +446,32 @@ xl.raw.write=function(r.obj,xl.rng,na=""){
 }
 
 
-xl.raw.write.default=function(r.obj,xl.rng,na=""){
+xl.raw.write.default=function(r.obj,xl.rng,na="")
+###  writes vectors (one-dimensional objects)
+{
 	nas=is.na(r.obj)
-	if (is.character(r.obj)) r.obj[nas]=na
-	if (is.character(r.obj) || !any(nas)){	
+	if (is.character(r.obj) || all(nas)){
 		xl.range<-xl.rng[['Application']]$range(xl.rng$cells(1,1),xl.rng$cells(length(r.obj),1))
-		xl.range[['Value']]<-asCOMArray(r.obj)
+		
+		r.obj[nas]=na
+		if (all(r.obj==""))	{
+			xl.range$ClearContents()
+		} else {
+			xl.range<-xl.rng[['Application']]$range(xl.rng$cells(1,1),xl.rng$cells(length(r.obj),1))
+			xl.range[['Value']]<-asCOMArray(r.obj)
+		}
 	} else	{
-		xl.raw.write.matrix(as.matrix(r.obj),xl.rng)
+		if (!any(nas)){
+			xl.range<-xl.rng[['Application']]$range(xl.rng$cells(1,1),xl.rng$cells(length(r.obj),1))
+			xl.range[['Value']]<-asCOMArray(r.obj)
+		} 
+		else return(xl.raw.write.matrix(as.matrix(r.obj),xl.rng))
 	}
-	# further code for NA's pasting correction
-	
-	# if (any(nas)& is.numeric(r.obj)){
-		# nas=rle(nas)
-		# lens=nas$lengths
-		# coord=c(1,1+cumsum(lens))
-		# coord=coord[c(nas$values,FALSE)]
-		# lens=lens[nas$values]
-		# mapply(function(x,y){
-			# na.rng=xl.rng[['Application']]$range(xl.rng$cells(x,1),xl.rng$cells(x+y-1,1))
-			# na.rng[['Value']]=asCOMArray(rep(na,y))
-		# },coord,lens)
-	# }
 	invisible(c(length(r.obj),1))
 }
+
+
+
 
 
 
@@ -444,46 +480,64 @@ xl.raw.write.matrix=function(r.obj,xl.rng,na="")
 {
 	# xl.range<-xl.sheet$range(xl.sheet$cells(xl.row,xl.col),xl.sheet$cells(xl.row+NROW(r.obj)-1,xl.col))
 	excel=xl.rng[['Application']]
+	xl.range=excel$range(xl.rng$cells(1,1),xl.rng$cells(nrow(r.obj),ncol(r.obj)))
+	nas=is.na(r.obj)
 	if (is.numeric(r.obj)){
-		on.exit(excel[["DisplayAlerts"]]<-TRUE)
-		excel[["DisplayAlerts"]]=FALSE
-		xl.range<-excel$range(xl.rng$cells(1,1),xl.rng$cells(nrow(r.obj),1))
-		# further code for NA's pasting correction
-		r.obj[is.na(r.obj)]=na
-		if (is.vector(r.obj)) r.obj=as.matrix(r.obj)
-		r.obj=apply(r.obj,1,paste,collapse="\t")
-		xl.range[['Value']]<-asCOMArray(r.obj)
-		xlDelimited=1
-		xlDoubleQuote=1
-		xl.range$TextToColumns(Destination=xl.range, 
-			DataType=xlDelimited,TextQualifier=xlDoubleQuote,ConsecutiveDelimiter=FALSE,
-			Tab=TRUE,Semicolon=FALSE,Comma=FALSE,Space=FALSE,Other=FALSE,FieldInfo=c(1,1),
-			TrailingMinusNumbers=TRUE)
-	} else {
-		if (is.character(r.obj)) {
-			r.obj[is.na(r.obj)]=na
-			xl.range=excel$range(xl.rng$cells(1,1),xl.rng$cells(nrow(r.obj),ncol(r.obj)))
+		if (!any(nas)) {
 			xl.range[["Value"]]=asCOMArray(r.obj)
-		} else {
-			xl.range=excel$range(xl.rng$cells(1,1),xl.rng$cells(nrow(r.obj),ncol(r.obj)))
+		} else if (all(nas)) {
+			if (na=="") {
+				xl.range$clearcontents() 
+			} else {
+				xl.range[['Value']]=matrix(na,nrow=NROW(r.obj),ncol=NCOL(r.obj))
+			}
+ 		} else {
+			on.exit(excel[["DisplayAlerts"]]<-TRUE)
+			excel[["DisplayAlerts"]]=FALSE
+			xl.range<-xl.range[["Columns"]][[1]]
+			# further code for NA's pasting correction
+			r.obj[nas]=na
+			if (is.vector(r.obj)) r.obj=as.matrix(r.obj)
+			iter=1:ncol(r.obj)
+			block=1000
+			while(length(iter)>0){
+				if (length(iter)>block){
+					temp=apply(r.obj[,iter[1:block]],1,paste,collapse="\t")
+					iter=iter[-(1:block)]
+				} else {
+					temp=apply(r.obj[,iter],1,paste,collapse="\t")
+					iter=numeric(0)
+				}
+				xl.range[['Value']]<-asCOMArray(temp)
+				
+				xlDelimited=1
+				xlDoubleQuote=1
+				xl.range$TextToColumns(Destination=xl.range, 
+					DataType=xlDelimited,TextQualifier=xlDoubleQuote,ConsecutiveDelimiter=FALSE,
+					Tab=TRUE,Semicolon=FALSE,Comma=FALSE,Space=FALSE,Other=FALSE,FieldInfo=c(1,1),
+					DecimalSeparator=".",TrailingMinusNumbers=TRUE)
+				if (length(iter)>0) xl.range=xl.range$offset(0,block)	
+			}	
+		}	
+	} else if (is.character(r.obj) || all(nas)) {
+			r.obj[nas]=na
+			if (all(r.obj=="")) xl.range$clearcontents() else xl.range[["Value"]]=asCOMArray(r.obj)
+	} else {	
 			xl.range[["Value"]]=asCOMArray(r.obj)
-			nas=is.na(r.obj)
 			if (any(nas)){
 				lapply(1:ncol(nas),function(column) {
 					na.in.column=which(nas[,column])
 					if (length(na.in.column)>0){
 						lapply(na.in.column,function(na.in.row){
-							xl.range=xl.rng$cells(na.in.row,na.in.column)
+							xl.range=xl.rng$cells(na.in.row,column)
 							xl.range[["Value"]]=na
 						})
 					}
 				
 				})
-			
 			}
-		}
 	
-	}
+		}
 	# TextToColumns Destination:=Range("A5"), DataType:=xlDelimited, _
         # TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, Tab:=True, _
         # Semicolon:=False, Comma:=False, Space:=False, Other:=False, FieldInfo _
@@ -491,31 +545,6 @@ xl.raw.write.matrix=function(r.obj,xl.rng,na="")
 	invisible(c(nrow(r.obj),ncol(r.obj)))
 }
 
-not.need.xl.raw.write.data.frame=function(r.obj,xl.rng,na="")
-### insert data.frame into excel sheet without column and row names
-{
-	# xl.range<-xl.sheet$range(xl.sheet$cells(xl.row,xl.col),xl.sheet$cells(xl.row+NROW(r.obj)-1,xl.col))
-	excel=xl.rng[['Application']]
-	on.exit(excel[["DisplayAlerts"]]<-TRUE)
-	excel[["DisplayAlerts"]]=FALSE
-	xl.range<-excel$range(xl.rng$cells(1,1),xl.rng$cells(nrow(r.obj),1))
-	# further code for NA's pasting correction
-	r.obj[is.na(r.obj)]=na
-	# if (is.vector(r.obj)) r.obj=as.matrix(r.obj)
-	r.obj=do.call(paste,c(r.obj,sep="\t"))
-	xl.range[['Value']]<-asCOMArray(r.obj)
-	xlDelimited=1
-	xlDoubleQuote=1
-	xl.range$TextToColumns(Destination=xl.range, 
-		DataType=xlDelimited,TextQualifier=xlDoubleQuote,ConsecutiveDelimiter=FALSE,
-		Tab=TRUE,Semicolon=FALSE,Comma=FALSE,Space=FALSE,Other=FALSE,FieldInfo=c(1,1),
-		TrailingMinusNumbers=TRUE)
-	# TextToColumns Destination:=Range("A5"), DataType:=xlDelimited, _
-        # TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, Tab:=True, _
-        # Semicolon:=False, Comma:=False, Space:=False, Other:=False, FieldInfo _
-        # :=Array(1, 1), TrailingMinusNumbers:=True
-	invisible(c(nrow(r.obj),ncol(r.obj)))
-}
 
 
 

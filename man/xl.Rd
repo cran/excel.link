@@ -56,9 +56,7 @@ Difference between 'xl', 'xlc', 'xlrc' and 'xlr' is 'xl' ignore row and column n
 \value{
 Return appropriate dataset from Excel. Excel datetime type currently not supported.
 }
-\references{
-%% ~put references to the literature/web site here ~
-}
+
 \author{
 Gregory Demin <excel.link.feedback@gmail.com>
 }
