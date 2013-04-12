@@ -4,11 +4,15 @@
 #########################################################
 #########################################################
 ##### ver 0.5  - 19.11.2011 - Initial release ###########
-##### ver 0.5.1 - 23.11.2011- Bugfix release ###########
+##### ver 0.5.2 - 23.03.2012- Bugfix release ###########
+##### ver 0.5.3 - 17.07.2012- Bugfix release ###########
+##### ver 0.5.4 - 13.08.2012- Bugfix release ###########
+########## 1. Current graphics now insert picture not link to the file
+########## 2. aaa[condition,new.var]=data   now works properly
+##### ver 0.5.5 - 17.04.2013- Compatibilty fix for R3.0  release ###########
 
 .onAttach <- function(...) {
 	packageStartupMessage("\nTo Daniela Khazova who constantly inspires me...")
-	# packageStartupMessage("\nStartup message")
 }
 
 
@@ -109,7 +113,6 @@ has.colnames(xlrc)=TRUE
 '[.xl'=function(x,str.rng,drop=!(has.rownames(x) | has.colnames(x)),na="")
 ### return range from Microsoft Excel. range.name is character string in form of standard
 ### Excel reference, quotes can be omitted, e. g. [A1:B5], [Sheet1!F8], [[Book3]Sheet7!B1] or range name 
-### If range.name is ommited than current region will be return (as pressing keys CtrlShift* in Excel)
 ### Function is intended to use in interactive environement 
 {
 	# str.rng=as.character(sys.call())[3]
@@ -120,7 +123,6 @@ has.colnames(xlrc)=TRUE
 '[[.xl'=function(x,str.rng,drop=!(has.rownames(x) | has.colnames(x)),na="")
 ### return range from Microsoft Excel. range.name is character string in form of standard
 ### Excel reference, e. g. ['A1:B5'], ['Sheet1!F8'], ['[Book3]Sheet7!B1'] or range name 
-### If range.name is ommited than current region will be return (as pressing keys CtrlShift* in Excel)
 ### The difference with '[' is that value should be quoted string. It's intended to use in user define functions
 ### or in cases where value is string variable with Excel range  
 {
@@ -132,7 +134,6 @@ has.colnames(xlrc)=TRUE
 '$.xl'=function(x,str.rng)
 ### return range from Microsoft Excel. range.name is character string in form of standard
 ### Excel reference, e. g. xl$'A1:B5', xl$'Sheet1!F8', xl$'[Book3]Sheet7!B1', xl$h3 or range name 
-### If range.name is ommited than current region will be return (as pressing keys CtrlShift* in Excel)
 ### The difference with '[' is that value should be quoted string. It's intended to use in user define functions
 ### or in cases where value is string variable with Excel range  
 {
@@ -161,7 +162,17 @@ has.colnames(xlrc)=TRUE
 	x
 }
 
+make.me.quick=function(app){
+	app[["Screenupdating"]]=FALSE
+	app[["Calculation"]]=-4135  # xlCalculationManual = -4135
+	invisible(NULL)
+}
 
+make.me.slow=function(app){
+	app[["Screenupdating"]]=TRUE
+	app[["Calculation"]]=-4105  # xlCalculationAutomatic = -4105
+	invisible(NULL)
+}
 
 
 xl.write=function(r.obj,xl.rng,na="",...)
@@ -169,8 +180,8 @@ xl.write=function(r.obj,xl.rng,na="",...)
 ## shoul return c(row,column) - next emty point
 {
 	app=xl.rng[["Application"]]
-	on.exit(app[["Screenupdating"]]<-TRUE)
-	app[["Screenupdating"]]=FALSE
+	on.exit(make.me.slow(app))
+	make.me.quick(app)
 	UseMethod("xl.write")
 }
 
@@ -203,12 +214,14 @@ xl.write.current.graphics=function(r.obj,xl.rng,na="",delete.file=FALSE,...)
 	on.exit(curr.sheet$Activate())
 	xl.sheet=xl.rng[["Worksheet"]]
 	xl.sheet$Activate()
-    pic=app[["Activesheet"]][['Pictures']]$Insert(unclass(r.obj))
 	top=xl.rng[["Top"]]
 	left=xl.rng[["Left"]]
-	pic[["Top"]]=top
-	pic[["Left"]]=left
-	fill=pic[["Shaperange"]][['Fill']]
+    pic=app[["Activesheet"]][['Pictures']]$Insert(unclass(r.obj))
+	height=pic[["Height"]]
+	width=pic[["Width"]]
+	pic$Delete()
+	pic=app[["Activesheet"]][['Shapes']]$AddPicture(unclass(r.obj),0,-1,left,top,width,height)
+	fill=pic[['Fill']]   # [["Shaperange"]]
 	fill[['ForeColor']][['RGB']]=16777215L
 	height=pic[["Height"]]+top
 	width=pic[["Width"]]+left
@@ -380,7 +393,7 @@ xl.write.default=function(r.obj,xl.rng,na="",row.names=TRUE,...){
 
 xl.write.factor=function(r.obj,xl.rng,na="",row.names=TRUE,...){
 	r.obj=as.character(r.obj)
-	xl.write(r.obj,xl.rng=xl.rng,na=na,row.names=row.names,...)
+	xl.write.default(r.obj,xl.rng=xl.rng,na=na,row.names=row.names,...)
 }
 
 xl.write.table=function(r.obj,xl.rng,na="",...){
@@ -422,19 +435,6 @@ xl.writerow=function(r.obj,xl.rng,na="")
 	r.list=as.list(r.obj)
 	r.list[nas]=na
 	xl.range[['Value']]<-r.list
-	# further code for NA's pasting correction
-
-	# if (any(nas) & is.numeric(r.obj)){
-		# nas=rle(nas)
-		# lens=nas$lengths
-		# coord=c(1,1+cumsum(lens))
-		# coord=coord[c(nas$values,FALSE)]
-		# lens=lens[nas$values]
-		# mapply(function(x,y){
-			# na.rng=xl.rng[['Application']]$range(xl.rng$cells(1,x),xl.rng$cells(1,x+y-1))
-			# na.rng[['Value']]=asCOMArray(rep(na,y))
-		# },coord,lens)
-	# }
 	invisible(c(1,length(r.obj)))
 }
 
@@ -502,10 +502,10 @@ xl.raw.write.matrix=function(r.obj,xl.rng,na="")
 			block=1000
 			while(length(iter)>0){
 				if (length(iter)>block){
-					temp=apply(r.obj[,iter[1:block]],1,paste,collapse="\t")
+					temp=apply(r.obj[,iter[1:block],drop=FALSE],1,paste,collapse="\t")
 					iter=iter[-(1:block)]
 				} else {
-					temp=apply(r.obj[,iter],1,paste,collapse="\t")
+					temp=apply(r.obj[,iter,drop=FALSE],1,paste,collapse="\t")
 					iter=numeric(0)
 				}
 				xl.range[['Value']]<-asCOMArray(temp)
@@ -558,7 +558,7 @@ xl.selection=function(drop=TRUE,na="",row.names=FALSE,col.names=FALSE)
 
 
 xl.current.region=function(str.rng,drop=TRUE,na="",row.names=FALSE,col.names=FALSE)
-# return current selection from Microsoft Excel
+# return current region from Microsoft Excel (region selected when pressing Ctrl+Shift+*)
 {
 	ex=xl.get.excel()
 	xl.rng=ex$range(str.rng)
@@ -614,7 +614,10 @@ xl.workbook.add=function(filename=NULL)
 ### if filename is give, its used as template 
 {
 	ex=xl.get.excel()
-	if (!is.null(filename)) xl.wb=ex[['Workbooks']]$Add(filename) else xl.wb=ex[['Workbooks']]$Add()
+	if (!is.null(filename)) {
+		path=normalizePath(filename,mustWork=TRUE)
+		xl.wb=ex[['Workbooks']]$Add(path) 
+	} else xl.wb=ex[['Workbooks']]$Add()
 	invisible(xl.wb[["Name"]])
 }
 
@@ -623,7 +626,7 @@ xl.workbooks=function()
 {
 	ex=xl.get.excel()
 	wb.count=ex[['Workbooks']][['Count']]
-	sapply(1:wb.count, function(wb) ex[['Workbooks']][[wb]][['Name']])
+	sapply(seq_len(wb.count), function(wb) ex[['Workbooks']][[wb]][['Name']])
 }
 
 xl.workbook.open=function(filename)
@@ -689,7 +692,7 @@ xl.sheets=function()
 {
 	ex=xl.get.excel()
 	sh.count=ex[['ActiveWorkbook']][['Sheets']][['Count']]
-	sapply(1:sh.count, function(sh) ex[['ActiveWorkbook']][['Sheets']][[sh]][['Name']])
+	sapply(seq_len(sh.count), function(sh) ex[['ActiveWorkbook']][['Sheets']][[sh]][['Name']])
 }
 
 xl.sheet.exists=function(xl.sheet,all.sheets=xl.sheets())
@@ -809,18 +812,7 @@ sort.excel.range=function(x,decreasing=FALSE,column,...)
 		Orientation=1,	#xlTopToBottom
 		DataOption1=0 #xlSortNormal
 	)
-	# sheet.sort[["SortFields"]]$Add(
-		# Key=xl.range[['Columns']][[column]],
-		# SortOn=0, #xlSortOnValues
-		# Order=decreasing+1, #xlAscending
-		# DataOption=0 #xlSortNormal
-	# )
-	# sheet.sort$SetRange(xl.range)
-	# sheet.sort[["Header"]]=2- has.colnames(x) #xlYes, xlNo
-	# sheet.sort[["MatchCase"]]=TRUE
-	# sheet.sort[["Orientation"]]=1	#xlTopToBottom
-	# sheet.sort[["SortMethod"]]=1	#xlPinYin
-	# sheet.sort$Apply()
+
 	invisible(NULL)
 }
 
@@ -994,6 +986,9 @@ xl.ncol=function(xl.rng){
 		value=as.data.frame(value,stringsAsFactors =FALSE)
 	}	
 	xl.rng=x()
+	app=xl.rng[["Application"]]
+	on.exit(make.me.slow(app))
+	make.me.quick(app)
 	na=attr(xl.rng,"NA")
 	dim.names=xl.dimnames(xl.rng)
 	all.colnames=dim.names[[2]] 
@@ -1015,7 +1010,7 @@ xl.ncol=function(xl.rng){
 		if (is.character(j)) {
 			new.columns=j[!(j %in% all.colnames)] 
 			if (length(new.columns)>0){
-				if(!has.colnames(xl.rng)) stop ('adding columns allowed only if range has colnames.')
+				if(!has.colnames(xl.rng)) stop ('new columns allowed only if range has colnames.')
 				new.value=value[,!(j %in% all.colnames),drop=FALSE]
 				value=value[,(j %in% all.colnames),drop=FALSE]
 				value.colnum=ncol(value)
@@ -1038,7 +1033,7 @@ xl.ncol=function(xl.rng){
 	} 
 	### dealing with rows
 	value.rownum=nrow(value)	
-	if (missing(i)) all.rows=length(all.rownames) else all.rows=length(i)
+	if (missing(i)) all.rows=length(all.rownames) else if (is.logical(i)) all.rows=sum(i,na.rm=TRUE) else all.rows=length(i)
 	if (value.rownum>all.rows | all.rows%%value.rownum!=0) stop('replacment has ',value.rownum,' rows, data has ',all.rows)
 	if (all.rows>length(all.rownames)) stop('replacment has ',all.rows,' rows, data has ',length(all.rownames))
 	if (all.rows!=value.rownum) {
@@ -1088,7 +1083,7 @@ xl.ncol=function(xl.rng){
 	if (missing(i) & !missing(j)) {
 		mapply (function(k,val) {
 				curr.rng=xl.rng$cells(has.colnames(xl.rng)+1,k)
-				xl.write(val,curr.rng,na=na,col.names=FALSE,row.names=FALSE)
+				xl.write.default(val,curr.rng,na=na,col.names=FALSE,row.names=FALSE)
 			},colnumber,value
 		)
 		if (length(new.columns)>0 & !delete.items) {
@@ -1099,7 +1094,7 @@ xl.ncol=function(xl.rng){
 					curr.rng=xl.rng$cells(has.colnames(xl.rng)+1,kk)
 					dummy=xl.rng$cells(1,kk)
 					dummy[['Value']]=new.columns[k]
-					xl.write(val,curr.rng,na=na,col.names=FALSE,row.names=FALSE)
+					xl.write.default(val,curr.rng,na=na,col.names=FALSE,row.names=FALSE)
 				}, seq_along(new.columns),new.value
 			)
 		}	
@@ -1114,11 +1109,24 @@ xl.ncol=function(xl.rng){
 	if (!missing(i) & !missing(j)) {
 		mapply (function(k1,val1) {
 				mapply(function(k2,val2){
-					xl.write(val2,xl.rng$Cells(k2,k1),na=na,col.names=FALSE,row.names=FALSE)
+					xl.write.default(val2,xl.rng$Cells(k2,k1),na=na,col.names=FALSE,row.names=FALSE)
 				},
 				rownumber,val1)
 			},colnumber,value)
-		
+		if (length(new.columns)>0) {
+				nv=as.data.frame(matrix(NA,nrow=length(all.rownames),ncol=length(new.columns)))
+				nv[rownumber-has.colnames(xl.rng),]=new.value
+				colnames(nv)=new.columns
+				# browser()
+				for (k in seq_along(new.columns)) {
+					kk=k+length(all.colnames)+has.rownames(xl.rng)
+					insert.range=xl.rng[['columns']][[kk]]
+					insert.range$insert(Shift=-4161)
+				}
+				curr.rng=xl.rng$cells(1,1+length(all.colnames)+has.rownames(xl.rng))
+				xl.write.data.frame(nv,curr.rng,na=na,col.names=has.colnames(xl.rng),row.names=FALSE)
+				
+		}
 	}	
 	invisible(x)
 }
@@ -1128,6 +1136,8 @@ xl.ncol=function(xl.rng){
 	x[,j]=value
 	invisible(x)
 }
+
+#######################
 
 
 
