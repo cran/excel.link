@@ -7,9 +7,11 @@
 ##### ver 0.5.2 - 23.03.2012- Bugfix release ###########
 ##### ver 0.5.3 - 17.07.2012- Bugfix release ###########
 ##### ver 0.5.4 - 13.08.2012- Bugfix release ###########
-########## 1. Current graphics now insert picture not link to the file
+########## 1. Current graphics now insert picture instead of link to the file
 ########## 2. aaa[condition,new.var]=data   now works properly
-##### ver 0.5.5 - 17.04.2013- Compatibilty fix for R3.0  release ###########
+##### ver 0.5.5 - 12.04.2013- Compatibilty fix for R3.0  release ###########
+##### ver 0.5.6 - 14.04.2013- names_to_matrix fix ###########
+##### ver 0.6 - 26.08.2013- xl.read.file, xl.save.file, filename argument in current.graphics ###########
 
 .onAttach <- function(...) {
 	packageStartupMessage("\nTo Daniela Khazova who constantly inspires me...")
@@ -186,14 +188,24 @@ xl.write=function(r.obj,xl.rng,na="",...)
 }
 
 
-current.graphics=function(type="emf",...){
-	if (!('windows' %in% names(dev.cur()))) stop("there is no graphics on windows device.")
-	res=paste(tempfile(),".",type,sep="")
-	savePlot(filename=res,type=type,...)
+current.graphics=function(type = "emf",filename = NULL,...){
+	if (is.null(filename)){
+		if (!('windows' %in% names(dev.cur()))) stop("there is no graphics on windows device.")
+		res=paste(tempfile(),".",type,sep="")
+		savePlot(filename=res,type=type,...)
+		attr(res,"temp.file")=TRUE
+	} else {
+		res=normalizePath(filename,mustWork=TRUE)
+	}
 	class(res)="current.graphics"
-	attr(res,"temp.file")=TRUE
 	res
 }
+
+# file.with.graphics=function(filename){
+	# path=normalizePath(filename,mustWork=TRUE)
+	# class(path)="current.graphics"
+	# path
+# }
 
 temp.file=function(r.obj)
 # auxiliary function
@@ -262,8 +274,8 @@ xl.write.list=function(r.obj,xl.rng,na="",...)
 
 
 xl.write.ctable=function(r.obj,xl.rng,na="",row.names=TRUE,col.names=TRUE,...){
-	xl.colnames<-t(names.to.matrix(colnames(r.obj)))
-	xl.rownames<-names.to.matrix(rownames(r.obj))
+	xl.colnames<-t(names_to_matrix(colnames(r.obj)))
+	xl.rownames<-names_to_matrix(rownames(r.obj))
 	has.col=ifelse(!is.null(xl.colnames) && col.names,nrow(xl.colnames),0)
 	has.row=ifelse(!is.null(xl.rownames) && row.names,ncol(xl.rownames),0)
 	if ((row.names | col.names)){
@@ -283,28 +295,28 @@ xl.write.ctable=function(r.obj,xl.rng,na="",row.names=TRUE,col.names=TRUE,...){
 	invisible(c(nrow(r.obj)+has.col,ncol(r.obj)+has.row))
 }
 
-names.to.matrix=function(name,splitter="|")
+names_to_matrix=function(name,splitter="|")
 # Convert rownames/colnames with items delimited by symbol 'splitted'
 # to matrix with each label in it's own cell and remove sequentally repeated
 # labels.
 {
 	if (!is.null(name)){
-	splitted=strsplit(as.character(name),split=splitter,fixed=TRUE)
-	el.len=max(unlist(lapply(splitted,length)))
-	column.nums=1:el.len
-	res=vapply(splitted,"[",column.nums,FUN.VALUE=as.character(column.nums))
-	res[is.na(res)]=""
-	as.matrix(apply(as.matrix(res),1,function(each.row){
-		first=each.row[1]
-		for (each.col in seq_along(each.row)[-1]){
-			if (each.row[each.col]==first) {
-				each.row[each.col]=""
-			} else {
-				first=each.row[each.col]
+		splitted=strsplit(as.character(name),split=splitter,fixed=TRUE)
+		el.len=max(unlist(lapply(splitted,length)))
+		column.nums=1:el.len
+		res=vapply(splitted,"[",column.nums,FUN.VALUE=as.character(column.nums))
+		if (!is.matrix(res)) res=t(res)
+		res[is.na(res)]=""
+		width=NCOL(res)
+		if ((NROW(res)>0) & (width>1)){
+			boundary=logical(width-1)
+			for (i in (1:NROW(res))){
+				boundary=boundary | (res[i,1:(width-1)]!=res[i,2:width])
+				res[i,c(FALSE,!boundary)]=""
 			}
 		}
-		each.row
-	})) } else NULL
+		t(res)
+	} else NULL
 }
 
 xl.write.matrix=function(r.obj,xl.rng,na="",row.names=TRUE,col.names=TRUE,...)
@@ -603,7 +615,7 @@ xl.process.list=function(data.list,na="")
 	lapply(data.list, function(each.col) {
 		# each.col=gsub("^[\\t\\s]+$","",each.col,perl=TRUE)
 		for.na=unlist(lapply(each.col,function(each.cell) isS4(each.cell) || is.null(each.cell) || length(each.cell)==0 || each.cell==na))
-		each.col[for.na | grepl("^[\\t\\s]+$",each.col,perl=TRUE)]=NA
+		each.col[for.na ]=NA  # | grepl("^[\\t\\s]+$",each.col,perl=TRUE)
 		each.col
 		})
 }
@@ -1140,4 +1152,81 @@ xl.ncol=function(xl.rng){
 #######################
 
 
+ #bm xl.read.file
+xl.read.file=function(filename, header = TRUE, row.names=NULL, col.names=NULL, xl.sheet=NULL,top.left.cell="A1", na = "",excel.visible=FALSE)
+# read data from excel file
+# filename - name of the file
+# header if TRUE First row treated as colnames and if top.left.cell is empty then first column treated as rownames.
+# if row.names or col.names not is null header argument will be ignored
+# if row.names is TRUE first column will be treated as rownames
+# if col.names is TRUE first row will be treated as colnames
+# xl.sheet - can be character - sheet name or numeric - number number. if omitted data will be read from active sheet 
+# na - string which will be treated as NA value
+# top.left.cell - top-left corner of region which will be read
+# excel.visible  if TRUE Excel will be visible during operation
+{
+	xl_temp = COMCreate("Excel.Application",existing=FALSE)
+	on.exit(xl_temp$quit()) 
+	xl_temp[["Visible"]]=excel.visible
+	xl_temp[["DisplayAlerts"]] = FALSE
+	xl_wb=xl_temp[["Workbooks"]]$Open(normalizePath(filename,mustWork=TRUE))
+	# on.exit(xl_wb$close())
+	# on.exit(xl_temp$quit(),add=TRUE)
+	if (!is.null(xl.sheet)){
+		if (!is.character(xl.sheet) & !is.numeric(xl.sheet)) stop('Argument "xl.sheet" should be character or numeric.')
+		sh.count=xl_wb[['Sheets']][['Count']]
+		sheets=sapply(seq_len(sh.count), function(sh) xl_wb[['Sheets']][[sh]][['Name']])
+		if (is.numeric(xl.sheet)){
+			if (xl.sheet>length(sheets)) stop ("too large sheet number. In workbook only ",length(sheets)," sheet(s)." )
+			xl_wb[["Sheets"]][[xl.sheet]]$Activate()
+		} else {
+			sheet_num=which(tolower(xl.sheet)==tolower(sheets)) 
+			if (length(sheet_num)==0) stop ("sheet ",xl.sheet," doesn't exist." )
+			xl_wb[["Sheets"]][[sheet_num]]$Activate()
+		}
+	}
+	if(is.null(row.names) && is.null(col.names)){
+		if(header){
+			col.names=TRUE
+			temp=xl.read.range(xl_temp[["ActiveSheet"]]$range(top.left.cell),na="")
+			row.names = is.na(temp) || all(grepl("^([\\s\\t]+)$",temp,perl=TRUE))
+		} else {
+			row.names=FALSE
+			col.names=FALSE
+		}
+	} else {
+		if (is.null(row.names)) row.names=FALSE
+		if (is.null(col.names)) col.names=FALSE
+	}
+	top_left_corner=xl_temp$range(top.left.cell)
+	xl.rng = top_left_corner[["CurrentRegion"]]
+	if (tolower(top.left.cell)!="a1") {
+		bottom_row = xl.rng[["row"]]+xl.rng[["rows"]][["count"]]-1
+		right_column = xl.rng[["column"]]+xl.rng[["columns"]][["count"]]-1
+		xl.rng=xl_temp$range(top_left_corner,xl_temp$cells(bottom_row,right_column))
+	} 
+	xl.read.range(xl.rng,drop=FALSE,na=na,row.names=row.names,col.names=col.names)
+}
+
+###  #bm xl.save.file
+xl.save.file=function(r.obj,filename, row.names=TRUE, col.names=TRUE, xl.sheet=NULL,top.left.cell="A1", na = "",excel.visible=FALSE)
+{
+	xl_temp = COMCreate("Excel.Application",existing=FALSE)
+	on.exit(xl_temp$quit()) 
+	xl_temp[["Visible"]]=excel.visible
+	xl_temp[["DisplayAlerts"]] = FALSE
+	xl_wb=xl_temp[["Workbooks"]]$Add()
+	if (!is.null(xl.sheet)){
+		sh.count=xl_wb[['Sheets']][['Count']]
+		sheets=sapply(seq_len(sh.count), function(sh) xl_wb[['Sheets']][[sh]][['Name']])
+		if ((tolower(xl.sheet) %in% sheets)) stop ('sheet with name "',xl.sheet,'" already exists.')
+		res=xl_temp[['ActiveWorkbook']][['Sheets']]$Add(Before=xl_temp[['ActiveWorkbook']][['Sheets']][[1]])
+		res[['Name']]=substr(xl.sheet,1,63)
+	}
+	top_left_corner=xl_temp$range(top.left.cell)
+	xl.write(r.obj,xl.rng=top_left_corner,row.names=row.names,col.names=col.names,na=na)
+	path=normalizePath(filename,mustWork=FALSE)
+	xl_temp[["ActiveWorkbook"]]$SaveAs(path)
+	invisible(NULL)
+}
 

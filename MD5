@@ -1,11 +1,13 @@
-2e09466a45b14b116a80dfa0a0777d41 *DESCRIPTION
-6952d8349237fbecac768a7f03959a87 *NAMESPACE
-acb47e2037b23bc358c816c8df2939f5 *R/excel.link.R
-a55e14c576bd1f1a4098a9f716d9d01f *man/current.graphics.Rd
+460d1abbc44cecc03c34ba87bbe28771 *DESCRIPTION
+76d580853d4bf18054837e9795370240 *NAMESPACE
+499627449ca9cd84ad7cb1315b68bb5b *NEWS
+a4bbeef301ce4bf41d5f3447c56c64b0 *R/excel.link.R
+ae92c46cab162cb8a719b86777f05f52 *man/current.graphics.Rd
 0b56fd2191d0971642b448eefcf861ff *man/dimnames.excel.range.Rd
 3793a91507727301b560ac1683d7b681 *man/xl.Rd
 35b994fdb02a0cfa20c9f57af4715f3a *man/xl.connect.table.Rd
 2a85b719421eeeef0c6535a09b4f8e44 *man/xl.get.excel.Rd
+ca30377a7dd223646003a3057a7770b3 *man/xl.read.file.Rd
 3a8d3116f5e7e420a7eba3e6e146a0c7 *man/xl.sheets.Rd
 a0d80ea714564b96421554d63716af81 *man/xl.workbooks.Rd
 5aac686769267e68bb0b9dca33c8d824 *man/xl.write.Rd
