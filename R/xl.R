@@ -13,16 +13,16 @@
 #'   rownames, "c" - with colnames
 #' @param str.rng character Excel range. For single bracket operations it can be
 #'   without quotes in almost all cases.
-#' @param drop a logical. If TRUE the result is coerced to the lowest possible 
+#' @param drop logical. If TRUE the result is coerced to the lowest possible 
 #'   dimension. By default dimensions will be dropped if there are no columns 
 #'   and rows names.
-#' @param row.names a logical value indicating whether the Excel range contains 
+#' @param row.names logical value indicating whether the Excel range contains 
 #'   the row names as its first column.
-#' @param col.names a logical value indicating whether the Excel range contains 
+#' @param col.names logical value indicating whether the Excel range contains 
 #'   the column names as its first row.
 #' @param na character. NA representation in Excel. By default it is empty 
 #'   string.
-#' @param value a suitable replacement value. It will be recycled to fill excel 
+#' @param value suitable replacement value. It will be recycled to fill excel 
 #'   range only if it is object of length 1. In other cases size of excel range 
 #'   is ignored - all data will be placed in Excel sheet starting from top-left 
 #'   cell of submitted range.
@@ -40,28 +40,27 @@
 #'   There is argument \code{drop} which is \code{TRUE} by default for \code{xl}
 #'   and \code{FALSE} by default for other options. \code{xl.selection} returns 
 #'   data.frame with data from current selection in Excel. 
-#'   \code{xl.current.region} returns data.frame with data from current region 
-#'   (range which can be selected by pressing \code{Ctrl+Shift+*}) in Excel. All
-#'   these functions never coerce characters to factors
+#'   All these functions never coerce characters to factors
 #'   
-#' @return Returns appropriate dataset from Excel. Excel datetime type currently
-#'   not supported.
+#' @return Returns appropriate dataset from Excel. 
 #' @aliases xl xlrc xlc xlr
+#' @seealso
+#' \code{\link{cr}}, \code{\link{xl.current.region}}, 
 #'   
 #' @examples
 #' 
 #' \dontrun{ 
 #' data(iris)
-#' rownames(iris) <- as.character(rownames(iris))
-#' iris$Species <- as.character(iris$Species)
+#' rownames(iris) = as.character(rownames(iris))
+#' iris$Species = as.character(iris$Species)
 #' xl.workbook.add()
-#' xlrc$a1 <- iris
-#' xl.iris <- xl.current.region("a1",row.names=TRUE,col.names=TRUE)
+#' xlrc$a1 = iris
+#' xl.iris = xl.current.region("a1",row.names=TRUE,col.names=TRUE)
 #' identical(xl.iris,iris)
 #' 
 #' xl.sheet.add("Datasets examples")
-#' data.sets <- list("Iris dataset",iris,"Cars dataset",cars,"Titanic dataset",as.data.frame(Titanic))
-#' xlrc[a1] <- data.sets
+#' data.sets = list("Iris dataset",iris,"Cars dataset",cars,"Titanic dataset",as.data.frame(Titanic))
+#' xlrc[a1] = data.sets
 #' 
 #' }
 #' @export
@@ -173,56 +172,109 @@ xl.selection = function(drop = TRUE,na = "",row.names = FALSE,col.names = FALSE)
 }
 
 
-#' @export
-#' @rdname xl
-xl.current.region = function(str.rng,drop = TRUE,na = "",row.names = FALSE,col.names = FALSE)
-    # return current region from Microsoft Excel (region selected when pressing Ctrl+Shift+*)
-{
-    ex = xl.get.excel()
-    xl.rng = ex$range(str.rng)
-    xl.read.range(xl.rng[["CurrentRegion"]],drop = drop,na = na,row.names = row.names,col.names = col.names)
-}
-
-
 xl.read.range = function(xl.rng,drop = TRUE,row.names = FALSE,col.names = FALSE,na = "")
     # return matrix/data.frame/vector from excel from given range
 {
     if (col.names && (xl.rng[["rows"]][["count"]]<2)) col.names = FALSE
     if (row.names && (xl.rng[["columns"]][["count"]]<2)) row.names = FALSE
-    raw.res = xl.rng[['Value2']]
-    if (is.null(raw.res)) data.list = NA else data.list = xl.process.list(raw.res,na = na)
+    data.list = xl.rng[['Value']]
+    if (!is.list(data.list)) data.list = list(list(data.list))
+    data.list = lapply(data.list, function(each.col) {
+        lapply(each.col, function(each.cell){
+            
+            if(is.null(each.cell) || length(each.cell) == 0 || each.cell == na) NA else each.cell
+            
+        })
+        
+    })
+    
+
+    # here we create logical matrix to keep type of excel cell
+    # currently there are three type NA - NA, TRUE - ComDate, FALSE - all others types
+    # these complexities are needed to deal with datetime columns. 
+    # if we have column with datetime and any other type (FALSE)
+    # we convert it to characters. If datetime mixed only with NA it will become POSIXct
+    # Main idea - data should look like as in Excel - no strange modifications
+    # such as integers become dates or dates become integers.
+    
+    types = lapply(data.list, function(each.col){
+        unlist(lapply(each.col, function(each.cell){
+            ifelse(class(each.cell) == "COMDate", TRUE, ifelse(is.na(each.cell),NA,FALSE))
+
+        }))
+        
+        
+    })
+    
+    type_matrix = do.call(cbind,types)
+
+    if (col.names) type_matrix = type_matrix[-1,,drop = FALSE]
+    if (row.names) type_matrix = type_matrix[,-1,drop = FALSE]
+    
+    
     if (col.names)    {
-        colNames = lapply(data.list,"[[",1)
+        colNames = lapply(data.list,function(each) {
+            res = each[[1]]
+            if (class(res) == "COMDate"){
+                gsub(" UTC","",excel_datetime2POSIXct(res),fixed = TRUE)
+                
+            }   else res
+            
+        })
         if (row.names) colNames = colNames[-1]
         data.list = lapply(data.list,"[",-1)
     }
     if (row.names) {
-        rowNames = unlist(data.list[[1]])
+        rowNames = unlist(lapply(data.list[[1]], function(each) {
+            if (class(each) == "COMDate"){
+                gsub(" UTC","",excel_datetime2POSIXct(each),fixed = TRUE)
+                
+            }  else each                
+        }))
         data.list = data.list[-1]
     }	
     data.list = lapply(data.list,unlist)
-    classes = unique(sapply(data.list,class))
+    # classes = unique(sapply(data.list,class))
+    
     final.matrix = do.call(data.frame,list(data.list,stringsAsFactors = FALSE))
+    # make types
+    for (each.col in seq_len(ncol(final.matrix))){
+        if(any(type_matrix[,each.col] %in% TRUE)){
+            # we have datetime
+            if(any(type_matrix[,each.col] %in% FALSE)){
+               # we have datetime mixed with other types -> convert to string 
+                date_part = final.matrix[type_matrix[,each.col] %in% TRUE,each.col]
+                date_part = excel_datetime2POSIXct(date_part) 
+                final.matrix[type_matrix[,each.col] %in% TRUE,each.col] = gsub(" UTC","",date_part,fixed = TRUE) 
+            } else {
+                # we have only date.time/NA in this column -> convert to POSIXct
+                final.matrix[,each.col] = excel_datetime2POSIXct(final.matrix[,each.col]) 
+                
+            }
+            
+        }
+        
+    }
+
     if (row.names && anyDuplicated(rowNames)) {
         row.names = FALSE
         warning("There are duplicated rownames. They will be ignored.")
     }	
-    if (row.names) rownames(final.matrix) = rowNames else rownames(final.matrix) = xl.rownames(xl.rng)[ifelse(col.names,-1,TRUE)]
-    if (col.names) colnames(final.matrix) = colNames else colnames(final.matrix) = xl.colnames(xl.rng)[ifelse(row.names,-1,TRUE)]
+    if (row.names) {
+        rownames(final.matrix) = rowNames
+    } else {
+        rownames(final.matrix) = xl.rownames(xl.rng)[ifelse(col.names,-1,TRUE)]
+    }
+    if (col.names) {
+        colnames(final.matrix) = colNames 
+    } else {
+        colnames(final.matrix) = xl.colnames(xl.rng)[ifelse(row.names,-1,TRUE)]
+    }
     if (ncol(final.matrix)<2 & drop) final.matrix = final.matrix[,1]
     final.matrix
 }
 
+excel_datetime2POSIXct = function(value){
+    as.POSIXct(as.numeric(value)*86400, origin="1899-12-30", tz="UTC") # 60*60*24 = 86400
 
-
-xl.process.list = function(data.list,na = "")
-    ## intended for processing list from Excel
-    ## it's replace NULL's, "" and zero-length elements with NA
-{
-    lapply(data.list, function(each.col) {
-        # each.col = gsub("^[\\t\\s]+$","",each.col,perl = TRUE)
-        for.na = unlist(lapply(each.col,function(each.cell) isS4(each.cell) || is.null(each.cell) || length(each.cell) == 0 || each.cell == na))
-        each.col[for.na ] = NA # | grepl("^[\\t\\s]+$",each.col,perl = TRUE)
-        each.col
-    })
 }

@@ -1,4 +1,12 @@
-0.8.0 (06.06.2015)
+0.9.1 (14.07.2015)
+===============
+* Fix converstion of #NUM! and other Excel errors. Now they are converted to NaN.
+* Add basic datetime supports
+* Add abitility to name pictures in Excel - so it can be updated from R
+* xl.workbook.open/xl.read.file now can read files from URL
+* Add active bindings to Excel ranges
+
+0.8.1 (06.05.2015)
 ===============
 * RDCOMClient integration
 * options(excel_hwnd) to get specific Excel instance
