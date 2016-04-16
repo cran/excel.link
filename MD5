@@ -1,6 +1,6 @@
-d9ac640eb02c4b9f46d1892e73e9ea95 *DESCRIPTION
+aae52730fb52720b111c77702d57aa9e *DESCRIPTION
 0db2326ea1db3436c58215e37a7428ad *NAMESPACE
-1ed829b18fea5cbf64bac5f7cb3dce18 *NEWS
+b0e25f9610aaa82c646c7a5a2751ac5a *NEWS
 944da86bc15694ccec8fb639968f351a *R/0COMError.R
 cbdbf4d86a61f2ad187a645d71852f80 *R/0classes.R
 c1a549122967a6aaad1fa4646e0bb68c *R/0com.R
@@ -23,7 +23,7 @@ a1906d535ad67a1486e5f19c1c1e9411 *R/xl.connect.table.R
 a68deb2e13501815395d4c956071671b *R/xl.sheet.add.R
 bdf173b505f41f75559e4d720aa0a51b *R/xl.workbooks.R
 27f32a950d89599dc9d1dab6ab1b017d *R/xl.write.R
-4e1406b5c28087eefd6c02433ca52555 *build/vignette.rds
+83a6a9160ca8e190a5f8a7a3230ee5c2 *build/vignette.rds
 94d51c351b895d4537b64efa38f87d26 *inst/doc/CallingRFromExcel.Rmd
 8379c4e5c034097522b486857a284c90 *inst/doc/CallingRFromExcel.html
 25788212d8fac1122af5b607656ed4e4 *inst/doc/R_connection_examples.xlsm
@@ -42,7 +42,7 @@ fd66ef83b66c4b3f7b1e83e66d2f754d *man/xl.workbook.add.Rd
 ac87ec716f7fc918f79dd998b9ddf9bb *man/xl.write.Rd
 f5220f87064a6a5838ab456e9fa57eee *src/COMError.cpp
 46d7dee93af9f2fce0c36f61f7b8be03 *src/Makevars.win
-7e7cb9f2bb3dc9be8e2eee5c207c6ca2 *src/RCOMObject.h
+06d10a877548e31b47b6e78784d2cc59 *src/RCOMObject.h
 f7a26fb75759300b5cb77ca68f6beb89 *src/RUtils.c
 18907ca2ea827b5c6dd0ecd155766255 *src/RUtils.h
 a695494a638eb9fbb95a035b684d778e *src/StdAfx.h

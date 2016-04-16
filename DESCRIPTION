@@ -1,10 +1,10 @@
 Package: excel.link
 Type: Package
 Title: Convenient Data Exchange with Microsoft Excel
-Version: 0.9.3
-Date: 2015-12-06
+Version: 0.9.4
+Date: 2016-04-12
 Author: Gregory Demin <excel.link.feedback@gmail.com>. To comply CRAN policy
-    includes source code from 'RDCOMClient' (http://www.omegahat.org/RDCOMClient) by
+    includes source code from 'RDCOMClient' (http://www.omegahat.net/RDCOMClient) by
     Duncan Temple Lang <duncan@wald.ucdavis.edu>.
 Maintainer: Gregory Demin <excel.link.feedback@gmail.com>
 Depends: methods, grDevices, utils
@@ -23,7 +23,7 @@ URL: https://github.com/gdemin/excel.link
 LazyLoad: yes
 ByteCompile: TRUE
 NeedsCompilation: yes
-RoxygenNote: 5.0.0
-Packaged: 2015-12-06 14:45:49 UTC; gregory
+RoxygenNote: 5.0.1
+Packaged: 2016-04-15 19:07:57 UTC; gregory
 Repository: CRAN
-Date/Publication: 2015-12-06 22:06:43
+Date/Publication: 2016-04-16 04:50:41
