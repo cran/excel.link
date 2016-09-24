@@ -1,3 +1,9 @@
+0.9.5 (24.09.2016)
+===============
+* Fixes an issue with multibyte character encoding (fix from soeque1 https://github.com/soeque1)
+* Fixes an issue with two workbooks after xl.workbooks.add/xl.workbooks.open
+
+
 0.9.4 (12.04.2016)
 ===============
 * Fixes a GCC warning and linking error from gcc v4.9.3 (fix by Jim Hester)

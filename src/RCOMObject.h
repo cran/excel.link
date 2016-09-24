@@ -6,8 +6,8 @@
 // #     Description: Provides dynamic client-side access to (D)COM applications from within R.
 // # License: GPL-2
 // # Collate: classes.R COMLists.S COMError.R com.R debug.S zzz.R runTime.S
-// # URL: http://www.omegahat.org/RDCOMClient, http://www.omegahat.org
-// # http://www.omegahat.org/bugs
+// # URL: http://www.omegahat.net/RDCOMClient, http://www.omegahat.net
+// # http://www.omegahat.net/bugs
 
 /*
 
@@ -170,9 +170,7 @@ class RCOMEnvironmentObject : public RCOMObject
   RCOMEnvironmentObject(SEXP def) {
     SEXP f, e, val;
     int errorOccurred;
-#ifdef RDCOM_VERBOSE
-    errorLog("[RCOMEnvironment]\n");
-#endif
+
     f = GET_SLOT(def, Rf_install("generator"));
     PROTECT(e = allocVector(LANGSXP, 1));
     SETCAR(e, f);
@@ -181,9 +179,7 @@ class RCOMEnvironmentObject : public RCOMObject
 
     setObject(val);
     UNPROTECT(1);
-#ifdef RDCOM_VERBOSE
-    errorLog("[end RCOMEnvironment]\n");
-#endif
+
   };
 };
 
