@@ -3,6 +3,8 @@
 #' @param filename character. Excel workbook filename.
 #' @param password character. Password for password-protected workbook.
 #' @param xl.workbook.name character. Excel workbook name.
+#' @param full.names logical. Should we return full path to the workbook? FALSE,
+#'   by default.
 #'   
 #' @return \itemize{ 
 #' \item{\code{xl.workbook.add}/\code{xl.workbook.open}/\code{xl.workbook.activate}
@@ -80,10 +82,19 @@ xl.workbook.open = function(filename,password = NULL)
     ## open workbook
 {
     ex = xl.get.excel_no_add_workbook()
+    wb.count = ex[['Workbooks']][['Count']]
+    if(wb.count>0){
+        wb.names = sapply(seq_len(wb.count), function(wb) ex[['Workbooks']][[wb]][['Name']])
+        wb.names = tolower(wb.names)
+        new_name = tolower(basename(filename))
+        if(new_name %in% wb.names){
+            return(invisible(xl.workbook.activate(new_name)))
+        }
+    }
     if (isTRUE(grepl("^(http|ftp)s?://", filename))){
         path = filename
     } else {
-        path = normalizePath(filename,mustWork = TRUE)  
+        path = normalizePath(filename, mustWork = TRUE)  
     }
     if(is.null(password)){
         xl.wb = ex[["Workbooks"]]$Open(path)
@@ -115,12 +126,16 @@ xl.workbook.activate = function(xl.workbook.name)
 
 #' @export
 #' @rdname xl.workbook.add
-xl.workbooks = function()
+xl.workbooks = function(full.names = FALSE)
     ## names of all opened workbooks
 {
     ex = xl.get.excel()
     wb.count = ex[['Workbooks']][['Count']]
-    sapply(seq_len(wb.count), function(wb) ex[['Workbooks']][[wb]][['Name']])
+    if(full.names){
+        sapply(seq_len(wb.count), function(wb) ex[['Workbooks']][[wb]][['FullName']])
+    } else {
+        sapply(seq_len(wb.count), function(wb) ex[['Workbooks']][[wb]][['Name']])
+    }
 }
 
 #' @export
