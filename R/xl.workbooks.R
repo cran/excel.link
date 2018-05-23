@@ -2,6 +2,11 @@
 #' 
 #' @param filename character. Excel workbook filename.
 #' @param password character. Password for password-protected workbook.
+#' @param write.res.password character. Second password for editing workbook.
+#' @param file.format integer. Excel file format. By default it is
+#'   \code{xl.constants$xlOpenXMLWorkbook}. You can use
+#'   \code{xl.constants$xlOpenXMLWorkbookMacroEnabled} for workbooks with macros
+#'   (*.xlsm) or \code{xl.constants$xlExcel12} for binary workbook (.xlsb).
 #' @param xl.workbook.name character. Excel workbook name.
 #' @param full.names logical. Should we return full path to the workbook? FALSE,
 #'   by default.
@@ -78,7 +83,7 @@ xl.workbook.add = function(filename = NULL)
 
 #' @export
 #' @rdname xl.workbook.add
-xl.workbook.open = function(filename,password = NULL)
+xl.workbook.open = function(filename, password = NULL, write.res.password = NULL)
     ## open workbook
 {
     ex = xl.get.excel_no_add_workbook()
@@ -96,11 +101,20 @@ xl.workbook.open = function(filename,password = NULL)
     } else {
         path = normalizePath(filename, mustWork = TRUE)  
     }
-    if(is.null(password)){
-        xl.wb = ex[["Workbooks"]]$Open(path)
-    } else {
-        xl.wb = ex[["Workbooks"]]$Open(path, password = password)
-    }
+    passwords =paste(!is.null(password), !is.null(write.res.password), sep = "_") 
+    xl.wb = switch(passwords, 
+                   FALSE_FALSE = ex[["Workbooks"]]$Open(path),
+                   TRUE_FALSE = ex[["Workbooks"]]$Open(path, 
+                                                            password = password
+                   ),
+                   FALSE_TRUE = ex[["Workbooks"]]$Open(path, 
+                                                            writerespassword = write.res.password
+                   ),
+                   TRUE_TRUE = ex[["Workbooks"]]$Open(path, 
+                                                           password = password, 
+                                                           writerespassword = write.res.password
+                   )
+    )
     invisible(xl.wb[['Name']])
 }
 
@@ -140,7 +154,7 @@ xl.workbooks = function(full.names = FALSE)
 
 #' @export
 #' @rdname xl.workbook.add
-xl.workbook.save = function(filename,password = NULL)
+xl.workbook.save = function(filename, password = NULL, write.res.password = NULL, file.format = xl.constants$xlOpenXMLWorkbook)
     ### save active workbook under the different name. If path is missing it saves in working directory
     ### doesn't alert if it owerwrite other file
 {
@@ -148,11 +162,23 @@ xl.workbook.save = function(filename,password = NULL)
     path = normalizePath(filename,mustWork = FALSE)
     on.exit(ex[["DisplayAlerts"]] <- TRUE)
     ex[["DisplayAlerts"]] = FALSE
-    if(is.null(password)) {
-        ex[["ActiveWorkbook"]]$SaveAs(path)
-    } else {
-        ex[["ActiveWorkbook"]]$SaveAs(path,password = password)
-    }
+    passwords =paste(!is.null(password), !is.null(write.res.password), sep = "_") 
+    switch(passwords, 
+                   FALSE_FALSE = ex[["ActiveWorkbook"]]$SaveAs(path, FileFormat = file.format),
+                   TRUE_FALSE = ex[["ActiveWorkbook"]]$SaveAs(path, 
+                                                       password = password,
+                                                       FileFormat = file.format
+                   ),
+                   FALSE_TRUE = ex[["ActiveWorkbook"]]$SaveAs(path, 
+                                                       writerespassword = write.res.password,
+                                                       FileFormat = file.format
+                   ),
+                   TRUE_TRUE = ex[["ActiveWorkbook"]]$SaveAs(path, 
+                                                      password = password, 
+                                                      writerespassword = write.res.password,
+                                                      FileFormat = file.format
+                   )
+    )
     invisible(path)
 }
 

@@ -11,13 +11,14 @@
 \usage{
 xl.workbook.add(filename = NULL)
 
-xl.workbook.open(filename, password = NULL)
+xl.workbook.open(filename, password = NULL, write.res.password = NULL)
 
 xl.workbook.activate(xl.workbook.name)
 
 xl.workbooks(full.names = FALSE)
 
-xl.workbook.save(filename, password = NULL)
+xl.workbook.save(filename, password = NULL, write.res.password = NULL,
+  file.format = xl.constants$xlOpenXMLWorkbook)
 
 xl.workbook.close(xl.workbook.name = NULL)
 }
@@ -26,10 +27,17 @@ xl.workbook.close(xl.workbook.name = NULL)
 
 \item{password}{character. Password for password-protected workbook.}
 
+\item{write.res.password}{character. Second password for editing workbook.}
+
 \item{xl.workbook.name}{character. Excel workbook name.}
 
 \item{full.names}{logical. Should we return full path to the workbook? FALSE,
 by default.}
+
+\item{file.format}{integer. Excel file format. By default it is
+\code{xl.constants$xlOpenXMLWorkbook}. You can use
+\code{xl.constants$xlOpenXMLWorkbookMacroEnabled} for workbooks with macros
+(*.xlsm) or \code{xl.constants$xlExcel12} for binary workbook (.xlsb).}
 }
 \value{
 \itemize{ 

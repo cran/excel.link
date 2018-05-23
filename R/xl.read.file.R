@@ -18,6 +18,11 @@
 #' @param na character. NA representation in Excel. By default it is empty
 #'   string.
 #' @param password character. Password for password-protected workbook.
+#' @param write.res.password character. Second password for editing workbook.
+#' @param file.format integer. Excel file format. By default it is
+#'   \code{xl.constants$xlOpenXMLWorkbook}. You can use
+#'   \code{xl.constants$xlOpenXMLWorkbookMacroEnabled} for workbooks with macros
+#'   (*.xlsm) or \code{xl.constants$xlExcel12} for binary workbook (.xlsb).
 #' @param excel.visible a logical value indicating will Excel visible during
 #'   this operations. FALSE by default.
 #'   
@@ -73,7 +78,7 @@
 #' @export
 xl.read.file = function(filename, header = TRUE, row.names = NULL, col.names = NULL, 
                         xl.sheet = NULL,top.left.cell = "A1", na = "",
-                        password = NULL,
+                        password = NULL, write.res.password = NULL,
                         excel.visible = FALSE)
     # read data from excel file filename - name of the file header if TRUE First
     # row treated as colnames and if top.left.cell is empty then first column
@@ -94,34 +99,31 @@ xl.read.file = function(filename, header = TRUE, row.names = NULL, col.names = N
     } else {
         path = normalizePath(filename,mustWork = TRUE)  
     }
-        
-    if(is.null(password)){
-        xl_wb = xl_temp[["Workbooks"]]$Open(path)
-    } else {
-        xl_wb = xl_temp[["Workbooks"]]$Open(path, 
-                                            password = password)   
-    }
+    passwords =paste(!is.null(password), !is.null(write.res.password), sep = "_") 
+    xl_wb = switch(passwords, 
+                   FALSE_FALSE = xl_temp[["Workbooks"]]$Open(path),
+                   TRUE_FALSE = xl_temp[["Workbooks"]]$Open(path, 
+                                                       password = password
+                   ),
+                   FALSE_TRUE = xl_temp[["Workbooks"]]$Open(path, 
+                                                       writerespassword = write.res.password
+                   ),
+                   TRUE_TRUE = xl_temp[["Workbooks"]]$Open(path, 
+                                                      password = password, 
+                                                      writerespassword = write.res.password
+                   )
+    )    
     # on.exit(xl_wb$close())
     # on.exit(xl_temp$quit(),add = TRUE)
     if (!is.null(xl.sheet)){
-        if (!is.character(xl.sheet) & !is.numeric(xl.sheet)) 
-            stop('Argument "xl.sheet" should be character or numeric.')
-        sh.count = xl_wb[['Sheets']][['Count']]
-        sheets = sapply(seq_len(sh.count), function(sh) xl_wb[['Sheets']][[sh]][['Name']])
-        if (is.numeric(xl.sheet)){
-            if (xl.sheet>length(sheets)) 
-                stop ("too large sheet number. In workbook only ",length(sheets)," sheet(s)." )
-            xl_wb[["Sheets"]][[xl.sheet]]$Activate()
-        } else {
-            sheet_num = which(tolower(xl.sheet) == tolower(sheets)) 
-            if (length(sheet_num) == 0) stop ("sheet ",xl.sheet," doesn't exist." )
-            xl_wb[["Sheets"]][[sheet_num]]$Activate()
-        }
+        data_sheet = get_sheet(xl_wb, xl.sheet)
+    } else {
+        data_sheet = xl_wb[["activesheet"]]
     }
     if(is.null(row.names) && is.null(col.names)){
         if(header){
             col.names = TRUE
-            temp = xl.read.range(xl_temp[["ActiveSheet"]]$range(top.left.cell),na = "")
+            temp = xl.read.range(data_sheet$range(top.left.cell),na = "")
             row.names = is.na(temp) || all(grepl("^([\\s\\t]+)$",temp,perl = TRUE))
         } else {
             row.names = FALSE
@@ -131,12 +133,12 @@ xl.read.file = function(filename, header = TRUE, row.names = NULL, col.names = N
         if (is.null(row.names)) row.names = FALSE
         if (is.null(col.names)) col.names = FALSE
     }
-    top_left_corner = xl_temp$range(top.left.cell)
+    top_left_corner = data_sheet$range(top.left.cell)
     xl.rng = top_left_corner[["CurrentRegion"]]
     if (tolower(top.left.cell) !=  "a1") {
         bottom_row = xl.rng[["row"]]+xl.rng[["rows"]][["count"]]-1
         right_column = xl.rng[["column"]]+xl.rng[["columns"]][["count"]]-1
-        xl.rng = xl_temp$range(top_left_corner,xl_temp$cells(bottom_row,right_column))
+        xl.rng = data_sheet$range(top_left_corner, data_sheet$cells(bottom_row,right_column))
     } 
     xl.read.range(xl.rng,drop = FALSE,na = na,row.names = row.names,col.names = col.names)
 }
@@ -146,8 +148,10 @@ xl.read.file = function(filename, header = TRUE, row.names = NULL, col.names = N
 #' @rdname xl.read.file
 xl.save.file = function(r.obj,filename, row.names = TRUE, col.names = TRUE, 
                         xl.sheet = NULL, top.left.cell = "A1", na = "",
-                        password = NULL,
-                        excel.visible = FALSE)
+                        password = NULL, 
+                        write.res.password = NULL,
+                        excel.visible = FALSE,
+                        file.format = xl.constants$xlOpenXMLWorkbook)
 {
     xl_temp = COMCreate("Excel.Application",existing = FALSE)
     on.exit(xl_temp$quit()) 
@@ -164,10 +168,22 @@ xl.save.file = function(r.obj,filename, row.names = TRUE, col.names = TRUE,
     top_left_corner = xl_temp$range(top.left.cell)
     xl.write(r.obj,xl.rng = top_left_corner,row.names = row.names,col.names = col.names,na = na)
     path = normalizePath(filename,mustWork = FALSE)
-    if(is.null(password)){
-        xl_temp[["ActiveWorkbook"]]$SaveAs(path)
-    } else {
-        xl_temp[["ActiveWorkbook"]]$SaveAs(path, password = password)
-    }
+    passwords =paste(!is.null(password), !is.null(write.res.password), sep = "_") 
+    switch(passwords, 
+           FALSE_FALSE = xl_temp[["ActiveWorkbook"]]$SaveAs(path, FileFormat = file.format),
+           TRUE_FALSE = xl_temp[["ActiveWorkbook"]]$SaveAs(path, 
+                                                           password = password,
+                                                           FileFormat = file.format
+           ),
+           FALSE_TRUE = xl_temp[["ActiveWorkbook"]]$SaveAs(path, 
+                                                           writerespassword = write.res.password,
+                                                           FileFormat = file.format
+           ),
+           TRUE_TRUE = xl_temp[["ActiveWorkbook"]]$SaveAs(path, 
+                                                          password = password, 
+                                                          writerespassword = write.res.password,
+                                                          FileFormat = file.format
+           )
+    ) 
     invisible(NULL)
 }
