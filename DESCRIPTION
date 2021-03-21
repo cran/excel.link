@@ -1,14 +1,13 @@
 Package: excel.link
 Type: Package
 Title: Convenient Data Exchange with Microsoft Excel
-Version: 0.9.8-1
-Date: 2018-05-23
+Version: 0.9.9
 Author: Gregory Demin <excel.link.feedback@gmail.com>. To comply CRAN policy
-    includes source code from 'RDCOMClient' (http://www.omegahat.net/RDCOMClient) by
+    includes source code from 'RDCOMClient' (http://www.omegahat.net/RDCOMClient/) by
     Duncan Temple Lang <duncan@wald.ucdavis.edu>.
 Maintainer: Gregory Demin <excel.link.feedback@gmail.com>
 Depends: methods, grDevices, utils
-Suggests: knitr
+Suggests: knitr, rmarkdown
 VignetteBuilder: knitr
 OS_type: windows
 Description: Allows access to data in running instance of Microsoft Excel
@@ -26,7 +25,7 @@ BugReports: https://github.com/gdemin/excel.link/issues
 LazyLoad: yes
 ByteCompile: TRUE
 NeedsCompilation: yes
-RoxygenNote: 6.0.1
-Packaged: 2018-05-23 12:02:51 UTC; demin
+RoxygenNote: 7.1.1
+Packaged: 2021-03-21 16:55:21 UTC; cekor
 Repository: CRAN
-Date/Publication: 2018-05-23 12:30:17 UTC
+Date/Publication: 2021-03-21 22:40:02 UTC
