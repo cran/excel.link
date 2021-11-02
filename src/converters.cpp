@@ -8,6 +8,7 @@
 // # Collate: classes.R COMLists.S COMError.R com.R debug.S zzz.R runTime.S
 // # URL: http://www.omegahat.net/RDCOMClient, http://www.omegahat.net
 // # http://www.omegahat.net/bugs
+// Some parts of code by https://github.com/jototland/ jototland@gmail.com
 
 #include "RCOMObject.h"
 #include <oleauto.h>
@@ -24,6 +25,55 @@ extern "C" {
 }
 
 #include "converters.h"
+
+#include <R_ext/Error.h>	/* for Rf_error and Rf_warning */
+
+#ifdef R_PROBLEM_BUFSIZE
+#undef R_PROBLEM_BUFSIZE
+#endif
+#ifdef PROBLEM
+#undef PROBLEM
+#endif
+
+#ifdef MESSAGE
+#undef MESSAGE
+#endif
+#ifdef RECOVER
+#undef RECOVER
+#endif
+
+
+#ifdef WARNING
+#undef WARNING
+#endif
+#ifdef LOCAL_EVALUATOR
+#undef LOCAL_EVALUATOR
+#endif
+
+#ifdef NULL_ENTRY
+#undef NULL_ENTRY
+#endif
+
+
+#ifdef WARN
+#undef WARN
+#endif
+#ifdef ERROR
+#undef ERROR
+#endif
+
+
+#define R_PROBLEM_BUFSIZE	4096
+/* Parentheses added for FC4 with gcc4 and -D_FORTIFY_SOURCE=2 */
+#define PROBLEM			{char R_problem_buf[R_PROBLEM_BUFSIZE];(snprintf)(R_problem_buf, R_PROBLEM_BUFSIZE,
+#define MESSAGE                 {char R_problem_buf[R_PROBLEM_BUFSIZE];(snprintf)(R_problem_buf, R_PROBLEM_BUFSIZE,
+#define ERROR			),Rf_error(R_problem_buf);}
+#define RECOVER(x)		),Rf_error(R_problem_buf);}
+#define WARNING(x)		),Rf_warning(R_problem_buf);}
+#define LOCAL_EVALUATOR		/**/
+#define NULL_ENTRY		/**/
+#define WARN			WARNING(NULL)
+
 
 static SEXP convertArrayToR(const VARIANT *var);
 void GetScodeString(HRESULT hr, LPTSTR buf, int bufSize);
@@ -379,13 +429,17 @@ R_convertDCOMObjectToR(VARIANT *var)
 
 
   if(V_ISARRAY(var)) {
-
+#if defined(RDCOM_VERBOSE) && RDCOM_VERBOSE
+  errorLog("Finishing convertDCOMObjectToR - convert array\n");
+#endif
     return(convertArrayToR(var));
   } else if(V_VT(var) == VT_DISPATCH || (V_ISBYREF(var) && ((V_VT(var) & (~ VT_BYREF)) == VT_DISPATCH)) ) {
     IDispatch *ptr;
     if(V_ISBYREF(var)) {
 
-
+#if defined(RDCOM_VERBOSE) && RDCOM_VERBOSE
+      errorLog("BYREF and DISPATCH in convertDCOMObjectToR\n");
+#endif
 
       IDispatch **tmp = V_DISPATCHREF(var);
       if(!tmp)
@@ -397,7 +451,9 @@ R_convertDCOMObjectToR(VARIANT *var)
     if(ptr) 
       ptr->AddRef();
     ans = R_createRCOMUnknownObject((void*) ptr, "COMIDispatch");
-
+#if defined(RDCOM_VERBOSE) && RDCOM_VERBOSE
+    errorLog("Finished convertDCOMObjectToR  COMIDispatch\n");
+#endif
     return(ans);
   }
 
@@ -413,7 +469,9 @@ R_convertDCOMObjectToR(VARIANT *var)
     if(rtype == VT_BSTR) {
         BSTR *tmp;
         const char *ptr = "";
-
+#if defined(RDCOM_VERBOSE) && RDCOM_VERBOSE
+	errorLog("BYREF and BSTR convertDCOMObjectToR  (scalar string)\n");
+#endif
         tmp = V_BSTRREF(var);
         if(tmp)
   	  ptr = FromBstr(*tmp);
@@ -490,8 +548,8 @@ R_convertDCOMObjectToR(VARIANT *var)
   case VT_VOID:
     return(R_NilValue);
     break;
- 
-	
+
+
 
 /*XXX Need to fill these in */
   case VT_RECORD:
@@ -513,7 +571,9 @@ R_convertDCOMObjectToR(VARIANT *var)
     ans = createRVariantObject(var, V_VT(var));
   }
 
-
+#if defined(RDCOM_VERBOSE) && RDCOM_VERBOSE
+  errorLog("Finished convertDCOMObjectToR\n");
+#endif
 
   return(ans);
 }
@@ -860,6 +920,7 @@ R_create2DArray(SEXP obj)
   return(ans);
 }
 
+extern "C"
 SEXP
 R_createVariant(SEXP type)
 {

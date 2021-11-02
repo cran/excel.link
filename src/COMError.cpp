@@ -8,6 +8,7 @@
 // # Collate: classes.R COMLists.S COMError.R com.R debug.S zzz.R runTime.S
 // # URL: http://www.omegahat.net/RDCOMClient, http://www.omegahat.net
 // # http://www.omegahat.net/bugs
+// Some parts of code by https://github.com/jototland/ jototland@gmail.com
 
 #include "RCOMObject.h"
 #include <windows.h>
@@ -16,17 +17,98 @@
 
 #include <tchar.h>
 
+#include <R_ext/Error.h>	/* for Rf_error and Rf_warning */
+
+#ifdef R_PROBLEM_BUFSIZE
+#undef R_PROBLEM_BUFSIZE
+#endif
+#ifdef PROBLEM
+#undef PROBLEM
+#endif
+
+#ifdef MESSAGE
+#undef MESSAGE
+#endif
+#ifdef RECOVER
+#undef RECOVER
+#endif
+
+
+#ifdef WARNING
+#undef WARNING
+#endif
+#ifdef LOCAL_EVALUATOR
+#undef LOCAL_EVALUATOR
+#endif
+
+#ifdef NULL_ENTRY
+#undef NULL_ENTRY
+#endif
+
+
+#ifdef WARN
+#undef WARN
+#endif
+#ifdef ERROR
+#undef ERROR
+#endif
+
+
+#define R_PROBLEM_BUFSIZE	4096
+/* Parentheses added for FC4 with gcc4 and -D_FORTIFY_SOURCE=2 */
+#define PROBLEM			{char R_problem_buf[R_PROBLEM_BUFSIZE];(snprintf)(R_problem_buf, R_PROBLEM_BUFSIZE,
+#define MESSAGE                 {char R_problem_buf[R_PROBLEM_BUFSIZE];(snprintf)(R_problem_buf, R_PROBLEM_BUFSIZE,
+#define ERROR			),Rf_error(R_problem_buf);}
+#define RECOVER(x)		),Rf_error(R_problem_buf);}
+#define WARNING(x)		),Rf_warning(R_problem_buf);}
+#define LOCAL_EVALUATOR		/**/
+#define NULL_ENTRY		/**/
+#define WARN			WARNING(NULL)
+
+extern "C" int RDCOM_WriteErrors;
+int RDCOM_WriteErrors = 1;
+
+extern "C"
+SEXP
+RDCOM_setWriteError(SEXP value)
+{
+    int tmp = RDCOM_WriteErrors;
+    RDCOM_WriteErrors = asLogical(value);
+    return(ScalarLogical(tmp));
+}
+
+extern "C"
+SEXP
+RDCOM_getWriteError(SEXP value)
+{
+    return(ScalarLogical(RDCOM_WriteErrors));
+}
+
+
 
 FILE *
 getErrorFILE()
 {
   static FILE *f = NULL;
-  if(!f) {
-    f = fopen("C:\\RDCOM.err", "a");
-    if(!f) {
-      f = fopen("C:\\RDCOM_server.err", "a");
+
+  if (f)
+    return f;
+
+  TCHAR path[MAX_PATH];
+  DWORD result;
+
+  result = GetTempPath(MAX_PATH, path);
+
+  if (result > MAX_PATH-10 || result == 0) {
+    f = stderr;
+  } else {
+    lstrcat(path, _T("RDCOM.err"));
+    f = fopen(path, "a");
+    if (!f) {
+      f = stderr;
     }
   }
+
   return(f);
 }
 
@@ -354,9 +436,9 @@ SEXP R_createCOMErrorCodes();
 	#undef MAKE_HRESULT_ENTRY
 
 
-// defined in stdlih.h
-#undef _countof
+#ifndef _countof
 #define _countof(array) (sizeof(array)/sizeof(array[0]))
+#endif
 void GetScodeString(HRESULT hr, LPTSTR buf, int bufSize)
 {
 	// first ask the OS to give it to us..
@@ -380,7 +462,7 @@ void GetScodeString(HRESULT hr, LPTSTR buf, int bufSize)
 		}
 	}
 	// not found - make one up
-	sprintf(buf, ("OLE error 0x%08x"), (unsigned int) hr);
+	sprintf(buf, ("OLE error 0x%08lx"), hr);
 }
 
 
@@ -418,7 +500,7 @@ checkErrorInfo(IUnknown *obj, HRESULT status, SEXP *serr)
   HRESULT hr;
   ISupportErrorInfo *info;
 
-  fprintf(stderr, "<checkErrorInfo> %X \n", (unsigned int) status);
+  fprintf(stderr, "<checkErrorInfo> %lX \n", status);
 
   if(serr) 
     *serr = NULL;
