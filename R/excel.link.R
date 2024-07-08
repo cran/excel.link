@@ -48,13 +48,7 @@
 
 #' @useDynLib "excel.link",.registration = TRUE
 #' @import methods grDevices utils
-#' 
+NULL
 
 
 
-
-
-
-.onAttach = function(...) {
-  packageStartupMessage("\nTo Daniela Khazova who constantly inspires me...")
-}
