@@ -10,6 +10,10 @@
 // # http://www.omegahat.net/bugs
 // Some parts of code by https://github.com/jototland/ jototland@gmail.com
 
+#ifndef R_NO_REMAP
+# define R_NO_REMAP
+#endif
+
 #include "RCOMObject.h"
 #include <windows.h>
 #include <oleauto.h>
@@ -73,15 +77,23 @@ SEXP
 RDCOM_setWriteError(SEXP value)
 {
     int tmp = RDCOM_WriteErrors;
-    RDCOM_WriteErrors = asLogical(value);
-    return(ScalarLogical(tmp));
+    RDCOM_WriteErrors = Rf_asLogical(value);
+    if(tmp>0){
+        return(R_scalarLogical(TRUE));
+    } else {
+        return(R_scalarLogical(FALSE));
+    }
 }
 
 extern "C"
 SEXP
 RDCOM_getWriteError(SEXP value)
 {
-    return(ScalarLogical(RDCOM_WriteErrors));
+    if(RDCOM_WriteErrors>0){
+        return(R_scalarLogical(TRUE));
+    } else {
+        return(R_scalarLogical(FALSE));
+    }
 }
 
 
@@ -478,10 +490,10 @@ COMError(HRESULT hr)
     ERROR;
     */
     SEXP e;
-    PROTECT(e = allocVector(LANGSXP, 3));
+    PROTECT(e = Rf_allocVector(LANGSXP, 3));
     SETCAR(e, Rf_install("COMStop"));
-    SETCAR(CDR(e), mkString(buf));
-    SETCAR(CDR(CDR(e)), ScalarInteger(hr));
+    SETCAR(CDR(e), Rf_mkString(buf));
+    SETCAR(CDR(CDR(e)), R_scalarInteger(hr));
     Rf_eval(e, R_GlobalEnv);
     UNPROTECT(1); /* Won't come back to here. */
 }
@@ -583,8 +595,8 @@ R_createCOMErrorCodes()
   SEXP ans, names;
   int n;
         n = _countof(hrNameTable);
-        PROTECT(ans = allocVector(REALSXP, n));
-        PROTECT(names = allocVector(STRSXP, n));
+        PROTECT(ans = Rf_allocVector(REALSXP, n));
+        PROTECT(names = Rf_allocVector(STRSXP, n));
 	for (int i = 0; i < n; i++)
 	{
 	  REAL(ans)[i] = (double) hrNameTable[i].hr;

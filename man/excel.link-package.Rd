@@ -56,3 +56,12 @@ is for transferring data/graphics to running instance of Excel, another part
 \code{\link{xl}}, \code{\link{current.graphics}},
   \code{\link{xl.connect.table}}
 }
+\author{
+\strong{Maintainer}: Gregory Demin \email{excel.link.feedback@gmail.com}
+
+Authors:
+\itemize{
+  \item Duncan Lang \email{duncan@wald.ucdavis.edu} (To comply CRAN policy includes source code from 'RDCOMClient' http://www.omegahat.net/RDCOMClient/)
+}
+
+}

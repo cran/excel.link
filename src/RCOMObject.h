@@ -168,7 +168,7 @@ class RCOMEnvironmentObject : public RCOMObject
     int errorOccurred;
 
     f = GET_SLOT(def, Rf_install("generator"));
-    PROTECT(e = allocVector(LANGSXP, 1));
+    PROTECT(e = Rf_allocVector(LANGSXP, 1));
     SETCAR(e, f);
 
     val = R_tryEval(e, R_GlobalEnv, &errorOccurred);

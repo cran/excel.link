@@ -1,3 +1,7 @@
+0.9.15 (12.02.2025)
+===============
+* Fixes for future R version
+
 0.9.13 (07.07.2024)
 ===============
 * Fixes for future R version (thanks to Tomas Kalibera)
